@@ -1,4 +1,6 @@
+#!/bin/env node
 const axios = require('axios').default
+const minimist = require('minimist')
 const cheerio = require('cheerio');
 const fs = require('fs')
 const csv = require('csv')
@@ -21,11 +23,59 @@ let allContestPatterns = {
 
 async function main() {
 
+    //validation
+    const argv = minimist(process.argv.slice(0));
+    if (argv.help) {
+        printHelp()
+        process.exit(0)
+    }
+    const requiredProperties = ['filename', 'limit', 'pattern', 'code'];
+    for (let prop of requiredProperties) {
+        if (!isDefined(argv, prop)) {
+            console.log(`${prop} options is missing`);
+            printHelp()
+            process.exit(-1)
+        }
+    }
+    let isPatternValid = false;
+    for (let pattern in allContestPatterns) {
+        if (argv.pattern == pattern) {
+            isPatternValid = true;
+        }
+    }
+    if (!isPatternValid) {
+        console.log('invalid pattern');
+        printHelp();
+        process.exit(0)
+    }
+    let isCodeValid = false;
+    for (let code in allProblemCodes) {
+        if (code == argv.code) {
+            isCodeValid = true;
+        }
+    }
+    if (!isCodeValid) {
+        console.log('invalid code');
+        printHelp()
+        process.exit(0)
+    }
     //parameters
-    let pattern = allContestPatterns.div2;
-    let problemCodes = allProblemCodes.D;
-    const contestsToSearch = 500;
-    const fileName = "div2_D_500.csv";
+    let pattern = allContestPatterns[argv.pattern];
+    let problemCodes = allProblemCodes[argv.code];
+    let limit = argv.limit;
+    const fileName = argv.filename;
+    console.log('finding problems with following parameters: ')
+    console.log(JSON.stringify({
+        pattern: pattern.source,
+        problemCodes,
+        limit,
+        fileName
+    }))
+
+
+    //state
+    let currentCount = 0;
+    let currentPage = 1;
 
     //logic
     if (fs.existsSync(fileName)) {
@@ -38,6 +88,48 @@ async function main() {
     })
     csvStream.pipe(writeStream)
     console.log('getting details of contests...')
+    //for each page
+    while (true) {
+        if (currentCount >= limit) {
+            break;
+        }
+        let contestDetails = await getContestDetailsOnPage(currentPage);
+        //for each contest
+        for (let detail of contestDetails) {
+            if (currentCount >= limit) {
+                break;
+            }
+            if (pattern.test(detail.contestName)) {
+                console.log(`contest found: ${detail.contestName}`)
+                const problemLinks = await getProblemLinksInContest(detail)
+                //for each problem
+                for (let link of problemLinks) {
+                    if (currentCount >= limit) {
+                        break;
+                    }
+                    let tokens = link.split('/');
+                    let code = tokens[tokens.length - 1].trim();
+                    if (problemCodes.includes(code)) {
+                        console.log(`problem found: ${link}`)
+                        let problemDetail = await getDetailsFromProblemLink(link);
+                        let dataUnit = {
+                            problemName: problemDetail.name,
+                            problemLink: problemDetail.problemLink,
+                            problemCode: problemDetail.code,
+                            problemDifficulty: problemDetail.difficulty,
+                            contestName: detail.contestName,
+                            contestLink: detail.contestLink
+                        }
+                        csvStream.write(dataUnit)
+                        currentCount++;
+                    }
+                }
+
+            }
+        }
+        currentPage++;
+    }
+    /*
     const contestDetails = await getLastestContestDetails(contestsToSearch)
     for (let detail of contestDetails) {
         if (pattern.test(detail.contestName)) {
@@ -62,6 +154,7 @@ async function main() {
             }
         }
     }
+    */
 }
 
 /**
@@ -140,6 +233,21 @@ async function getDetailsFromProblemLink(problemLink) {
     details.code = code;
     details.problemLink = problemLink;
     return details;
+}
+
+function printHelp() {
+    let helpText = `
+    usage: node index.js --filename=<file.csv> --limit=<100> --pattern=(div1|div2|div3) --code=(A|B|C|D|E|F|G)
+    `;
+    console.log(helpText)
+}
+
+function isDefined(object, propertyName) {
+    if (object[propertyName] == undefined || object[propertyName] == null) {
+        return false;
+    } else {
+        return true;
+    }
 }
 
 main().catch(err => {
