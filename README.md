@@ -8,5 +8,4 @@
 - clone the repo
 - cd into the repo
 - run `npm install`
-- open index.js file and change required parameters in parameters section
-- run `node index.js` this will run the script to generate a csv file containing problem details
+- run `node ./index.js --help` to find usage instructions
