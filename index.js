@@ -110,7 +110,7 @@ async function main() {
                     let tokens = link.split('/');
                     let code = tokens[tokens.length - 1].trim();
                     if (problemCodes.includes(code)) {
-                        console.log(`problem found: ${link}`)
+                        console.log(`found problem ${currentCount + 1}: ${link}`)
                         let problemDetail = await getDetailsFromProblemLink(link);
                         let dataUnit = {
                             problemName: problemDetail.name,
@@ -129,32 +129,6 @@ async function main() {
         }
         currentPage++;
     }
-    /*
-    const contestDetails = await getLastestContestDetails(contestsToSearch)
-    for (let detail of contestDetails) {
-        if (pattern.test(detail.contestName)) {
-            console.log(`contest found: ${detail.contestName}`)
-            const problemLinks = await getProblemLinksInContest(detail)
-            for (let link of problemLinks) {
-                let tokens = link.split('/');
-                let code = tokens[tokens.length - 1].trim();
-                if (problemCodes.includes(code)) {
-                    console.log(`problem found: ${link}`)
-                    let problemDetail = await getDetailsFromProblemLink(link);
-                    let dataUnit = {
-                        problemName: problemDetail.name,
-                        problemLink: problemDetail.problemLink,
-                        problemCode: problemDetail.code,
-                        problemDifficulty: problemDetail.difficulty,
-                        contestName: detail.contestName,
-                        contestLink: detail.contestLink
-                    }
-                    csvStream.write(dataUnit)
-                }
-            }
-        }
-    }
-    */
 }
 
 /**
